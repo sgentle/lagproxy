@@ -1,0 +1,66 @@
+#!/usr/bin/env ruby
+
+require 'webrick' 
+require 'webrick/httpproxy'
+require 'webrick/log'
+require 'optparse'
+
+options = {
+  :verbose => false,
+  :port => 8080,
+  :interface => '127.0.0.1',
+  :delay => 2.0,
+  :variance => 1.5
+}
+
+OptionParser.new do |opts|
+  opts.banner = "Usage: lagproxy [options]"
+
+  opts.on("-p", "--port PORT", "Proxy port (default: 8080)") do |p|
+    options[:port] = p
+  end
+
+  opts.on("-b", "--bind ADDR", "Bind address (default: 127.0.0.1)") do |b|
+    options[:bind] = b
+  end
+
+  opts.on("-d", "--delay N", Float, "Base delay in seconds (default: 2.0)") do |d|
+    options[:delay] = d
+  end
+
+  opts.on("-a", "--variance N", Float, "Delay variance (+/-) in seconds (default: 1.5)") do |a|
+    options[:variance] = a
+  end
+
+  opts.on("-v", "--[no-]verbose", "Run verbosely") do |v|
+    options[:verbose] = v
+  end
+  opts.on_tail("-h", "--help", "Show this message") do
+    puts opts
+    exit
+  end
+
+end.parse!
+
+log = WEBrick::Log.new(STDOUT, options[:verbose] ? WEBrick::BasicLog::DEBUG : WEBrick::BasicLog::INFO)
+
+request_callback = Proc.new do |request, response|
+  lag = (options[:delay] + (rand * 2 * options[:delay]) - options[:delay]).round(2)
+	log.info "Lagging request by #{lag} seconds"
+	
+	sleep(lag) if lag > 0
+end
+
+
+proxy = WEBrick::HTTPProxyServer.new(
+  :BindAddress => options[:bind],
+  :Port => options[:port],
+  :RequestCallback => request_callback,
+  :Logger => log
+) 
+
+trap "INT" do proxy.shutdown end
+
+log.info "Starting lag proxy with delay of #{options[:delay]} +/- #{options[:variance]} seconds"
+
+proxy.start
