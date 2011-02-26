@@ -1,5 +1,4 @@
-# lagproxy
-## Laggy proxy for webserver & web service testing
+# lagproxy - laggy proxy for webserver & web service testing
 
 ## Description
 
